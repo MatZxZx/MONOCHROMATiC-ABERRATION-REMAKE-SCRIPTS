@@ -26,7 +26,6 @@ public class Zero : Player
     [SerializeField] private float dynamicSpeed;
 
     [Header("ZERO Events")]
-
     public UnityEvent OnDash;
 
     [Header("ZERO References")]
@@ -66,6 +65,11 @@ public class Zero : Player
         stepTimer.Run();
         dashTimer.Run();
 
+        if (isCrashing)
+        {
+            StartCoroutine(WallKick());
+        }
+
         if (IsGrounded())
         {
             dashCount = 1;
@@ -83,6 +87,12 @@ public class Zero : Player
         base.SetRotation(tractionMultiplier);
     }   
 
+    private void DoubleJump()
+    {
+        rb.AddForce(transform.up * lowJumpMultiplier, ForceMode.VelocityChange);
+        SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/doubleJump");
+    }
+
     private void Anticipation()
     {
         if (canAnticipate)
@@ -99,6 +109,16 @@ public class Zero : Player
         {
             anticipationTimer.Reset();
         }
+    }
+    private IEnumerator WallKick(float cooldown = 1)
+    {
+        rb.freezeRotation = false;
+        Pirouette(transform.right, 100);
+        rb.AddForce(((-transform.forward * 2) + transform.up) * 30, ForceMode.VelocityChange);
+        SFXManager.PlayOneShot("Audio/SFX/Player/hit");
+        Debug.Log("crashie jiji");
+        yield return new WaitForSeconds(1);
+        rb.freezeRotation = true;
     }
     private IEnumerator FastStepping()
     {
@@ -189,6 +209,7 @@ public class Zero : Player
         {
             stepDirection = cc.ReadValue<Vector2>().normalized;
             canStep = true;
+            Pirouette(transform.forward, 100, (int)stepDirection.x);
             rb.AddForce((mainCam.right * dashRange) * stepDirection.x, ForceMode.Impulse);
             //transform.Translate(transform.position + mainCam.right);
             stepTimer.Reset();
@@ -208,9 +229,7 @@ public class Zero : Player
         {
             isWallJumping = true;
             rb.AddForce((WallDirection() + transform.up) * wallJumpForce);
-            //transform.rotation = Quaternion.Euler(WallDirection());
-            Debug.Log("salte en la pared");
-            //HACER QUE EL JUGADOR SE DE MEDIA VUELTA SIN QUE EL SetRotation INTERFIERA.
+            SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/doubleJump");
             rb.MoveRotation(Quaternion.LookRotation(WallDirection()));
             wallJumpForce /= wallJumpDegradation;
         }
@@ -224,6 +243,10 @@ public class Zero : Player
     {
         base.Jump(cc);
         if (cc.started && IsGrounded()) { SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/jump"); }
+        if(cc.started && !IsGrounded() && jumpCount > 0)
+        {
+            DoubleJump();
+        }
     }
     
 }

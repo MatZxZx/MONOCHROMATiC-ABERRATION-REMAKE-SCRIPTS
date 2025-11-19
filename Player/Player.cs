@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Cinemachine;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.Splines;
 
@@ -36,6 +37,7 @@ public class Player : MonoBehaviour
     [field: SerializeField] public bool isCrouching { get; protected set; }
     [field: SerializeField] public bool isTaunting { get; protected set; }
     [field: SerializeField] public bool isStomping { get; protected set; }
+    [field: SerializeField] public bool isCrashing { get; protected set; }
 
     [Header("Other States")]
     [field: SerializeField] protected bool freezeTraction = false;
@@ -48,6 +50,7 @@ public class Player : MonoBehaviour
     public float currentSpeed;
     public float currentVertical;
     [SerializeField] protected float moveSpeed = 20, maxSpeed = 5;
+    [SerializeField] protected float walkDrag = 3.5f;
     [SerializeField] protected float runMultiplier;
     [SerializeField] public float Desacceleration { get; protected set; }
     [SerializeField] protected float fallMultiplier = 60, lowJumpMultiplier = 40;
@@ -289,6 +292,7 @@ public class Player : MonoBehaviour
         Jumping(IsGrounded() && isJumping);
         Drift();
         Stomp();
+        Crash();
         //Brake();
     }
 
@@ -296,6 +300,7 @@ public class Player : MonoBehaviour
     //Dado un booleano, se puede cambiar dinámicamente el modo en que se traducen los inputs a fuerzas fisicas.
     private void Movement(bool is2d)
     {
+        Draging();
         if (!is2d)
         {
             Movement3D();
@@ -344,7 +349,7 @@ public class Player : MonoBehaviour
     private void SplineHandler(Vector3 pos)
     {
         // 1) Encontrar t más cercano (usa la variante que prefieras)
-        float nearestT = FindNearestT_Refined(coarseSamples: 48, refineSteps: 6, refineRange: 1f / 48f);
+        float nearestT = FindNearestT_Refined(coarseSamples: 48, refineSteps: 8, refineRange: 1f / 40f);
 
         // 2) Posición y tangente
         Vector3 closestPoint = spline2D.EvaluatePosition(nearestT);
@@ -419,6 +424,7 @@ public class Player : MonoBehaviour
         return pos;
     }
 
+
     //Esto define las propiedades que tengan que ver con velocidad, tanto horizontal; como vertical.
     //Los valores son absolutos.
     private void SpeedStatus()
@@ -474,7 +480,41 @@ public class Player : MonoBehaviour
         if (IsGrounded() && isRunning && isCrouching)
         {
             isDrifting = true;
-            IncreaseDrag(4);
+            //IncreaseDrag(4);
+        }
+    }
+
+    private void Crash()
+    {
+        if(OnWall() && currentSpeed > 40)
+        {    
+            isCrashing = true;
+        }
+        else
+        {
+            isCrashing = false;
+        }
+    }
+
+    public void Lean(Vector2 i)
+    {
+        Pirouette(transform.forward, 1000);
+        Debug.Log("ando leaneando");
+    }
+
+    public void Pirouette(Vector3 direction, float force, int orientation = -1)
+    {
+        rb.AddTorque(orientation * direction * force);
+    }
+    private void Draging()
+    {
+        if (!isRunning && IsGrounded())
+        {
+            rb.drag = Mathf.Lerp(baseStats[Stat.drag] * walkDrag, baseStats[Stat.drag], currentSpeed / (maxSpeed / 2));
+        }
+        else
+        {
+            rb.drag = baseStats[Stat.drag];
         }
     }
 
@@ -556,7 +596,13 @@ public class Player : MonoBehaviour
     
     //Todos estos se tienen que referenciar en el componente PlayerInput en el inspector.
     //Se les pueden hacer override en caso de que algún personaje quiera hacer lo mismo pero con alguna distinción.
-    virtual public void Move(InputAction.CallbackContext cc){}
+    virtual public void Move(InputAction.CallbackContext cc)
+    {
+        if (cc.performed)
+        {
+            Lean(input);
+        }
+    }
     virtual public void CameraMove(InputAction.CallbackContext cc){}
 
     virtual public void Jump(InputAction.CallbackContext cc)
@@ -611,7 +657,7 @@ public class Player : MonoBehaviour
             isCrouching = false;
             isDrifting = false;
             isStomping = false;
-            rb.drag = baseStats[Stat.drag];
+            //rb.drag = baseStats[Stat.drag];
             maxSpeed = baseStats[Stat.maxSpeed];
             moveSpeed = baseStats[Stat.moveSpeed];
         }
