@@ -24,7 +24,7 @@ public class Player : MonoBehaviour
     [field: SerializeField] protected Vector2 smoothedInput;
     protected Vector3 totalVelocity;
     private Vector2 inputVelocity;
-    [field: SerializeField] protected PlayerInput playerInput;
+    [field: SerializeField] public PlayerInput playerInput { get; protected set; }
     [field: SerializeField] protected float inputSmoothTime;
 
     [field: Header("States")]
@@ -46,35 +46,40 @@ public class Player : MonoBehaviour
     public bool ChangeDimension;
 
     [Header("FloatValues")]
-    [SerializeField] protected Dictionary<Stat, float> baseStats = new Dictionary<Stat, float>();
+    [field: SerializeField] protected Dictionary<Stat, float> baseStats = new Dictionary<Stat, float>();
     public float currentSpeed;
     public float currentVertical;
-    [SerializeField] protected float moveSpeed = 20, maxSpeed = 5;
-    [SerializeField] protected float walkDrag = 3.5f;
-    [SerializeField] protected float runMultiplier;
-    [SerializeField] public float Desacceleration { get; protected set; }
-    [SerializeField] protected float fallMultiplier = 60, lowJumpMultiplier = 40;
-    [SerializeField] private float longJumpForce = 800;
-    [SerializeField] private float timeOnAir = 0;
-    [SerializeField] protected float crouchMultiplier;
-    [SerializeField] private float rayOffset = 0.8f, rayHeight = 0.8f;
-    [SerializeField] private float jumpCounter;
-    [SerializeField] protected int jumpCount = 4;
-    [SerializeField] protected float gravityStrength = 10f;
+    [field: SerializeField] protected float moveSpeed = 20;
+    [field: SerializeField] public float maxSpeed { get; protected set; }
+    [field: SerializeField] protected float walkDrag = 3.5f;
+    [field: SerializeField] protected float runMultiplier;
+    [field: SerializeField] public float Desacceleration { get; protected set; }
+    [field: SerializeField] protected float jumpForce = 8f;
+    [field: SerializeField] protected float holdJumpForce = 4f;
+    [field: SerializeField] protected float maxHoldTime = 0.2f;
+    private float holdTimer = 0f;
+    [field: SerializeField] private float longJumpForce = 800;
+    [field: SerializeField] private float timeOnAir = 0;
+    [field: SerializeField] protected float crouchMultiplier;
+    [field: SerializeField] private float rayOffset = 0.8f, rayHeight = 0.8f;
+    [field: SerializeField] private float jumpCounter;
+    [field: SerializeField] protected int jumpCount = 4;
+    [field: SerializeField] protected float gravityStrength = 10f;
 
 
     [Header("References")]
     public static Player Instance;
+    public PlayerScore playerScore;
     public Rigidbody rb { get; protected set; }
-    [SerializeField] Quaternion baseRotation;
+    Quaternion baseRotation;
     public CapsuleCollider coll;
     public SplineContainer spline2D;
     public GameObject inputObj;
-    [SerializeField] public enum Stat { moveSpeed, maxSpeed, fallMultiplier, lowJumpMultiplier, crouchMultiplier, height, drag, Desacceleration, jumpCount }
-    [SerializeField] private LayerMask gndLayer;
+    public enum Stat { moveSpeed, maxSpeed, jumpForce, crouchMultiplier, height, drag, Desacceleration, jumpCount }
+    [field: SerializeField] private LayerMask gndLayer;
     public CinemachineVirtualCameraBase cam;
-    [SerializeField] protected Transform mainCam;
-    [SerializeField] public Animator Motion { get; protected set; }
+    [field: SerializeField] protected Transform mainCam;
+    [field: SerializeField]  public Animator Motion { get; protected set; }
 
     ////////////////////////////////////////////////////////////// UNITY FUNC. //////////////////////////////////////////////////////////////
 
@@ -113,6 +118,7 @@ public class Player : MonoBehaviour
         }
 
         Instance = this;
+        playerScore = GetComponent<PlayerScore>();
         rb = GetComponent<Rigidbody>();
         coll = GetComponent<CapsuleCollider>();
         playerInput = GetComponent<PlayerInput>();
@@ -128,8 +134,7 @@ public class Player : MonoBehaviour
     {
         baseStats.Add(Stat.moveSpeed, moveSpeed);
         baseStats.Add(Stat.maxSpeed, maxSpeed);
-        baseStats.Add(Stat.fallMultiplier, fallMultiplier);
-        baseStats.Add(Stat.lowJumpMultiplier, lowJumpMultiplier);
+        baseStats.Add(Stat.jumpForce, jumpForce);
         baseStats.Add(Stat.crouchMultiplier, crouchMultiplier);
         baseStats.Add(Stat.height, coll.height);
         baseStats.Add(Stat.drag, rb.drag);
@@ -207,8 +212,7 @@ public class Player : MonoBehaviour
     {
         moveSpeed = _moveSpeed;
         maxSpeed = _maxSpeed;
-        fallMultiplier = _fallMultiplier;
-        lowJumpMultiplier = _lowJumpMultiplier;
+        jumpForce = _lowJumpMultiplier;
         crouchMultiplier = _crouchMultiplier;
         coll.height = _height;
         rb.drag = _drag;
@@ -289,9 +293,8 @@ public class Player : MonoBehaviour
     {
         Movement(ChangeDimension);
         AerealMovement();
-        Jumping(IsGrounded() && isJumping);
+        //Jumping(IsGrounded() && isJumping);
         Drift();
-        Stomp();
         Crash();
         //Brake();
     }
@@ -309,7 +312,13 @@ public class Player : MonoBehaviour
         {
             Movement2D();
         }
-        rb.AddForce(0,-gravityStrength,0, ForceMode.Acceleration);
+
+        if(rb.velocity.y < 0)
+        {
+            rb.AddForce(0,-gravityStrength,0, ForceMode.Acceleration);
+        }
+        coll.material.bounciness = Mathf.Lerp(0,1, totalVelocity.y / maxSpeed);
+
     }
     //Esto se encarga de crear y traducir los inputs del jugador a fuerzas fisicas de manera tridimensional (X, Y, Z). 
     private void Movement3D()
@@ -460,7 +469,7 @@ public class Player : MonoBehaviour
     {
         if (canJump && isJumping)
         {
-            rb.AddForce(transform.up * lowJumpMultiplier, ForceMode.VelocityChange);
+            rb.AddForce(transform.up * jumpForce, ForceMode.VelocityChange);
         }
     }
 
@@ -498,13 +507,16 @@ public class Player : MonoBehaviour
 
     public void Lean(Vector2 i)
     {
-        Pirouette(transform.forward, 1000);
-        Debug.Log("ando leaneando");
+        StartCoroutine(Pirouette(transform.forward * i.normalized.x, 10, (int)i.normalized.x, 0.1f));
     }
 
-    public void Pirouette(Vector3 direction, float force, int orientation = -1)
+    public IEnumerator Pirouette(Vector3 direction, float force, int orientation = -1, float waitingTime = 1)
     {
+        
+        rb.freezeRotation = false;
         rb.AddTorque(orientation * direction * force);
+        yield return new WaitForSeconds(waitingTime);
+        rb.freezeRotation = true;
     }
     private void Draging()
     {
@@ -518,24 +530,11 @@ public class Player : MonoBehaviour
         }
     }
 
-    private void Stomp()
-    {
-        if (isStomping)
-        {
-            rb.AddForce(-transform.up * 200);
-            if (IsGrounded())
-            {
-                isStomping = false;
-            }
-        }
-    }
-
     private void Brake()
     {
         bool doingNothing = input == Vector2.zero && LastInput() == Vector2.zero;
         if (-input == LastInput() && totalVelocity.magnitude > 20)
         {
-            Debug.Log("FRENA NEGRO");
             StartCoroutine(Braking());
             isBraking = true;
         }
@@ -604,14 +603,30 @@ public class Player : MonoBehaviour
         }
     }
     virtual public void CameraMove(InputAction.CallbackContext cc){}
+    virtual public void CameraZoom(InputAction.CallbackContext cc)
+    {
+        if (cc.performed)
+        {
+            Vector2 callbackInput = cc.ReadValue<Vector2>().normalized;
+            if (callbackInput == Vector2.up)
+            {
+                cam.GetComponent<CameraManager>().ZoomIn();
+            }
+            else if (callbackInput == Vector2.down)
+            {
+                cam.GetComponent<CameraManager>().ZoomOut();
+            }
+        }
+    }
 
     virtual public void Jump(InputAction.CallbackContext cc)
     {
-        if (cc.started && !isJumping && jumpCount > 0)
+        if (cc.started && IsGrounded() && !isJumping && jumpCount > 0)
         {
-            isJumping = true;
-            LongJump();
             jumpCount--;
+            rb.AddForce(transform.up * jumpForce, ForceMode.VelocityChange);
+            LongJump();
+            isJumping = true;
         }
         else if (cc.canceled || cc.performed)
         {
@@ -687,11 +702,16 @@ public class Player : MonoBehaviour
     }
     protected virtual void SetRotation(float tractionMultiplier = 1)
     {
+        float totalTraction;
+        if(IsGrounded())
+        { totalTraction = Traction(freezeTraction); }
+        else{ totalTraction = Traction(freezeTraction) / 2;}
+
         if (input != Vector2.zero)
         {
             float targetAngle = Mathf.Atan2(input.x, input.y) * Mathf.Rad2Deg + mainCam.eulerAngles.y;
             Quaternion rotation = Quaternion.Euler(0f, targetAngle, 0f);
-            transform.rotation = Quaternion.Lerp(transform.rotation, rotation, Time.deltaTime * Traction(freezeTraction) * tractionMultiplier);
+            transform.rotation = Quaternion.Lerp(transform.rotation, rotation, Time.deltaTime * totalTraction * tractionMultiplier);
         }
     }
 
@@ -733,7 +753,7 @@ public class Player : MonoBehaviour
         }
     }
 
-    protected void AdaptToSurface(bool grounded, float adaptivity = 5)
+    protected void AdaptToSurface(bool grounded, float adaptivity = 8)
     {
         float rayLength = 1.5f;
 
@@ -799,3 +819,4 @@ public class Player : MonoBehaviour
     // }
 
 }
+

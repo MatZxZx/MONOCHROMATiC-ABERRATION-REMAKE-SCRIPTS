@@ -4,15 +4,22 @@ using UnityEngine;
 
 public class Expressions : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    [SerializeField] private Player player;
+    [SerializeField] private SkinnedMeshRenderer[] skinnedMeshRenderer;
+    [SerializeField] private Material blurMaterial;
+
+    void Awake()
     {
         
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+        SpeedBlur();
+    }
+
+    private void SpeedBlur()
+    {
+        blurMaterial.SetFloat("_BlurAmount", Mathf.Lerp(0, 0.01f, player.rb.velocity.magnitude / (player.maxSpeed * 12)));
     }
 }

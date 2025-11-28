@@ -11,10 +11,13 @@ public class Jig : Item
     {
         if (other.CompareTag("Player"))
         {
+            Player player = other.GetComponent<Player>();
 
             SpriteRenderer sr = GetComponentInChildren<SpriteRenderer>();
             sr.enabled = false;
             JigManager.Instance.Add(quantity, points);
+            player.playerScore.Add(quantity, points);
+            //UIEffects.Instance.Bump("jig_icon");
             Collider coll = GetComponent<Collider>();
             coll.enabled = false;
             SFXManager.PlayOneShot("Audio/SFX/Game/jig");

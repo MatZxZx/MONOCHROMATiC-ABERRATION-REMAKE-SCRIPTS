@@ -62,13 +62,9 @@ public class Zero : Player
     {
         AdaptToSurface(IsGrounded());
         Anticipation();
+        Stomp();
         stepTimer.Run();
         dashTimer.Run();
-
-        if (isCrashing)
-        {
-            StartCoroutine(WallKick());
-        }
 
         if (IsGrounded())
         {
@@ -89,7 +85,7 @@ public class Zero : Player
 
     private void DoubleJump()
     {
-        rb.AddForce(transform.up * lowJumpMultiplier, ForceMode.VelocityChange);
+        rb.AddForce(transform.up * (jumpForce / 4), ForceMode.VelocityChange);
         SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/doubleJump");
     }
 
@@ -102,7 +98,6 @@ public class Zero : Player
                 rb.velocity = Vector3.zero;
             }
             float counter = anticipationTimer.Run();
-            Debug.Log(counter);
             anticipationForce = Mathf.Lerp(0, anticipationLimit, counter / 2);
         }
         else
@@ -110,16 +105,38 @@ public class Zero : Player
             anticipationTimer.Reset();
         }
     }
-    private IEnumerator WallKick(float cooldown = 1)
+    private IEnumerator WallKick(float cooldown = 0.25f)
     {
-        rb.freezeRotation = false;
-        Pirouette(transform.right, 100);
-        rb.AddForce(((-transform.forward * 2) + transform.up) * 30, ForceMode.VelocityChange);
-        SFXManager.PlayOneShot("Audio/SFX/Player/hit");
-        Debug.Log("crashie jiji");
-        yield return new WaitForSeconds(1);
-        rb.freezeRotation = true;
+        float counter = 0;
+        while (!OnWall())
+        {
+            counter += 1 * Time.deltaTime;
+            yield return null;
+        }
+
+        if(counter < cooldown)
+        {
+            rb.freezeRotation = false;
+            StartCoroutine(Pirouette(transform.right, 100));
+            rb.AddForce(((-transform.forward * 2) + transform.up) * 30, ForceMode.VelocityChange);
+            SFXManager.PlayOneShot("Audio/SFX/Player/hit");
+            yield return new WaitForSeconds(1);
+            rb.freezeRotation = true;
+        }
     }
+
+    private void Stomp()
+    {
+        if (isStomping)
+        {
+            rb.AddForce(-Vector3.up * 200);
+            if (IsGrounded())
+            {
+                isStomping = false;
+            }
+        }
+    }
+
     private IEnumerator FastStepping()
     {
         // if (canStep)
@@ -154,7 +171,6 @@ public class Zero : Player
 
         if (cc.performed && !isIdle)
         {
-            Debug.Log("deltaincrement");
             canDeltaIncrement = true;
         }
         else if (cc.canceled)
@@ -168,7 +184,6 @@ public class Zero : Player
 
         if (cc.performed)
         {
-            Debug.Log("anticipation");
             canAnticipate = true;
         }
         else if (cc.canceled || canAnticipate)
@@ -186,7 +201,7 @@ public class Zero : Player
     public void Dash(InputAction.CallbackContext cc)
     {
 
-        if (cc.performed && !isFalling && dashCount > 0 && dashTimer.counter > 0.3) //Antes estaba !IsGrounded()
+        if (cc.started && !isFalling && dashCount > 0 && dashTimer.counter > 0.3) //Antes estaba !IsGrounded()
         {
             canDash = true;
             OnDash.Invoke();
@@ -195,6 +210,9 @@ public class Zero : Player
             rb.AddForce(transform.forward * dashRange, ForceMode.VelocityChange);
             Motion.SetTrigger("Dash");
             SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/dash");
+
+            if(!IsGrounded()){ StartCoroutine(WallKick()); }       
+
         }
         else if (cc.canceled)
         {
@@ -209,8 +227,8 @@ public class Zero : Player
         {
             stepDirection = cc.ReadValue<Vector2>().normalized;
             canStep = true;
-            Pirouette(transform.forward, 100, (int)stepDirection.x);
-            rb.AddForce((mainCam.right * dashRange) * stepDirection.x, ForceMode.Impulse);
+            StartCoroutine(Pirouette(transform.forward, 100, (int)stepDirection.x, 0.1f));
+            rb.AddForce(mainCam.right * (dashRange / 2) * stepDirection.x, ForceMode.Impulse);
             //transform.Translate(transform.position + mainCam.right);
             stepTimer.Reset();
             SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/fastStep");
@@ -229,7 +247,6 @@ public class Zero : Player
         {
             isWallJumping = true;
             rb.AddForce((WallDirection() + transform.up) * wallJumpForce);
-            SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/doubleJump");
             rb.MoveRotation(Quaternion.LookRotation(WallDirection()));
             wallJumpForce /= wallJumpDegradation;
         }
@@ -245,7 +262,7 @@ public class Zero : Player
         if (cc.started && IsGrounded()) { SFXManager.PlayOneShot("Audio/SFX/Player/ZERO/jump"); }
         if(cc.started && !IsGrounded() && jumpCount > 0)
         {
-            DoubleJump();
+            //DoubleJump();
         }
     }
     

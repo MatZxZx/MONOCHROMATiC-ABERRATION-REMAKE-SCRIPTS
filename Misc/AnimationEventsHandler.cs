@@ -14,4 +14,8 @@ public class AnimationEventsHandler : MonoBehaviour
     {
         p[index].Emit(4);
     }
+    public void ParticleL(ParticleSystem particleSystem)
+    {
+        particleSystem.Emit(4);
+    }
 }

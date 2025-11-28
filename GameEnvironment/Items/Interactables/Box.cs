@@ -19,7 +19,6 @@ public class Box : Breakable
                 player.rb.AddForce(player.transform.forward * breakImpulse * des);
                 gameObject.SetActive(false);
                 SFXManager.PlayOneShot("Audio/SFX/Game/boxBreak");
-                Debug.Log("LOL");
             }
         }
     }

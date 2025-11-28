@@ -31,7 +31,6 @@ public class SpeedPanel : Item
             player.rb.velocity = Vector3.zero + player.transform.forward * player.currentSpeed;
             player.transform.position = Vector3.Lerp(player.transform.position, transform.position, .2f);
             //float des = Mathf.Abs(player.Desacceleration - .5f);
-            //Debug.Log(des);
             player.rb.AddForce(transform.forward * force); // * des
             SFXManager.PlayOneShot("Audio/SFX/Game/booster");
             motion.SetTrigger("Boost");

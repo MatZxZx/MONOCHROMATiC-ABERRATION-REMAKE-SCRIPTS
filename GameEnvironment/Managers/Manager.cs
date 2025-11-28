@@ -20,6 +20,14 @@ public class Manager : MonoBehaviour
         points += _points;
 
     }
+    public void AddCounter(int _counter = 0)
+    {
+        counter += _counter;
+    }
+    public void AddPoints(int _points = 0)
+    {
+        counter += _points;
+    }
     public int GetCounter()
     {
         return counter;

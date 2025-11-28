@@ -15,7 +15,6 @@ public class Balloon : Breakable
             player.rb.AddForce(player.transform.forward + (player.transform.up * 3) * breakImpulse, ForceMode.VelocityChange);
             SFXManager.PlayOneShot("Audio/SFX/Game/balloon");
             gameObject.SetActive(false);
-            Debug.Log("LOL");
         
         }
     }

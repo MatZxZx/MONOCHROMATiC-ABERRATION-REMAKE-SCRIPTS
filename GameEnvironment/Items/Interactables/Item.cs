@@ -2,6 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+
+
+
 public class Item : MonoBehaviour
 {
     public int interactions = 0;
@@ -17,8 +20,18 @@ public class Item : MonoBehaviour
             OnInteract.Invoke();
         }
     }
+    void OnCollisionEnter(Collision collision)
+    {
+        ItemCollisionBehaviour(collision);
+        interactions++;
+        if (OnInteract.GetPersistentEventCount() != 0)
+        {
+            OnInteract.Invoke();
+        }
+    }
 
     virtual public void ItemBehaviour(Collider other) { }
+    virtual public void ItemCollisionBehaviour(Collision collision) { }
     virtual public void DisableItem(GameObject obj, float delay = 0)
     {
         StartCoroutine(Disable(obj, delay));
@@ -29,3 +42,4 @@ public class Item : MonoBehaviour
         _obj.SetActive(false);
     }
 }
+

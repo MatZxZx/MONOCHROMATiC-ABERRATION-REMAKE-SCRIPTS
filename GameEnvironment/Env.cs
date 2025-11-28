@@ -29,7 +29,7 @@ public class Env : MonoBehaviour
         
         if (Input.GetKeyDown(KeyCode.P))
         {
-            ScreenCapture.CaptureScreenshot("screenshot.png", 3);
+            ScreenCapture.CaptureScreenshot("screenshot.png", 2);
         }
 
     }
